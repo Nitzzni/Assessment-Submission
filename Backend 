@@ -1,0 +1,43 @@
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const app = express();
+app.use(express.json());
+
+const users = []; // Simple user store, replace with DB
+const SECRET_KEY = 'your_secret_key';
+
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  users.push({ username, password: hashedPassword });
+  res.status(201).send('User registered');
+});
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  const user = users.find(u => u.username === username);
+  if(user && await bcrypt.compare(password, user.password)) {
+    const token = jwt.sign({ username }, SECRET_KEY);
+    return res.json({ token });
+  }
+  res.status(401).send('Invalid credentials');
+});
+
+// Protected sweets endpoint example
+app.post('/api/sweets', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if(!authHeader) return res.status(401).send('Unauthorized');
+  const token = authHeader.split(' ')[1];
+  try {
+    jwt.verify(token, SECRET_KEY);
+    // Add sweet logic
+    res.status(201).send('Sweet added');
+  } catch {
+    res.status(403).send('Forbidden');
+  }
+});
+
+app.listen(3000, () => console.log('Server running on port 3000'));
